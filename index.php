@@ -24,7 +24,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && ($msg = trim($_POST["message"]))) {
         ]),
         CURLOPT_HTTPHEADER => [
             "Content-Type: application/json",
-            "Authorization: Bearer ",
+            "Authorization: Bearer " . $_ENV["api-key"],
         ],
     ]);
     $res = json_decode(curl_exec($ch), true);
