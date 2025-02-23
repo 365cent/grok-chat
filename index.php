@@ -3,6 +3,8 @@ session_start();
 $_SESSION["messages"] = $_SESSION["messages"] ?? [];
 if ($env = @parse_ini_file(".env")) {
     $_ENV["api-key"] = $env["api-key"];
+} else {
+    $_ENV["api-key"] = "YOUR_API_KEY";
 }
 if (isset($_GET["clear"])) {
     session_destroy();
@@ -22,7 +24,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && ($msg = trim($_POST["message"]))) {
         ]),
         CURLOPT_HTTPHEADER => [
             "Content-Type: application/json",
-            "Authorization: Bearer " . $_ENV["api-key"],
+            "Authorization: Bearer ",
         ],
     ]);
     $res = json_decode(curl_exec($ch), true);
