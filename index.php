@@ -79,7 +79,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && ($msg = trim($_POST["message"]))) {
     </div>
   </div>
   <div class="fixed bottom-0 w-full max-w-[50rem] left-1/2 -translate-x-1/2 p-3">
-      <form method="POST" class="relative bg-stone-50 p-2 rounded-3xl ring-1 ring-gray-200 hover:ring-gray-300 hover:shadow hover:bg-white focus-within:ring-gray-300 duration-300" data-replicated-value="">
+      <form method="POST" class="grid relative bg-stone-50 p-2 rounded-3xl ring-1 ring-gray-200 hover:ring-gray-300 hover:shadow hover:bg-white focus-within:ring-gray-300 duration-300" data-replicated-value="">
       <textarea name="message" class="w-full p-3 bg-transparent focus:outline-none" placeholder="How can Grok help?" style="resize:none;" oninput="this.parentNode.dataset.replicatedValue=this.value"></textarea>
       <div class="grid grid-cols-[auto_1fr] gap-2 absolute bottom-4 right-4">
         <select class="rounded-lg border px-3 py-1.5 text-sm"><option>Grok 2</option></select>
