@@ -3,6 +3,8 @@ session_start();
 $_SESSION["messages"] = $_SESSION["messages"] ?? [];
 if ($env = @parse_ini_file(".env")) {
     $_ENV["api-key"] = $env["api-key"];
+} elseif (getenv("api-key")) {
+    $_ENV["api-key"] = getenv("api-key");
 } else {
     $_ENV["api-key"] = "YOUR_API_KEY";
 }
