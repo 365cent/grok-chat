@@ -21,55 +21,77 @@ if (isset($_GET["clear"])) {
     exit();
 }
 
-if ($_SERVER["REQUEST_METHOD"] === "POST" && ($msg = trim($_POST["message"]))) {
-    $_SESSION["messages"][] = ["role" => "user", "content" => $msg];
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $msg = trim($_POST["message"]);
+    $image = $_FILES["image"] ?? null;
 
-    // Create a pool of concurrent requests
-    $mh = curl_multi_init();
-    $channels = [];
+    $content = [];
 
-    // Initialize parallel request
-    $ch = curl_init("https://api.x.ai/v1/chat/completions");
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => json_encode([
-            "model" => "grok-2-latest",
-            "messages" => $_SESSION["messages"],
-            "stream" => false,
-        ]),
-        CURLOPT_HTTPHEADER => [
-            "Content-Type: application/json",
-            "Authorization: Bearer " . $_ENV["api-key"],
-        ],
-    ]);
-
-    // Add handle to pool
-    curl_multi_add_handle($mh, $ch);
-    $channels[] = $ch;
-
-    // Execute requests concurrently
-    do {
-        $status = curl_multi_exec($mh, $active);
-        if ($active) {
-            curl_multi_select($mh);
-        }
-    } while ($active && $status == CURLM_OK);
-
-    // Get content from completed requests
-    foreach ($channels as $ch) {
-        $res = json_decode(curl_multi_getcontent($ch), true);
-        if (!empty($res["choices"][0]["message"]["content"])) {
-            $_SESSION["messages"][] = [
-                "role" => "assistant",
-                "content" => $res["choices"][0]["message"]["content"],
-            ];
-        }
-        curl_multi_remove_handle($mh, $ch);
+    if ($msg) {
+        $content[] = [
+            "type" => "text",
+            "text" => $msg,
+        ];
     }
 
-    // Clean up
-    curl_multi_close($mh);
+    if ($image && $image["error"] === 0) {
+        $imageData = base64_encode(file_get_contents($image["tmp_name"]));
+        $content[] = [
+            "type" => "image_url",
+            "image_url" => [
+                "url" => "data:image/jpeg;base64," . $imageData,
+                "detail" => "high",
+            ],
+        ];
+    }
+
+    if (!empty($content)) {
+        $_SESSION["messages"][] = ["role" => "user", "content" => $content];
+
+        $mh = curl_multi_init();
+        $channels = [];
+
+        $model = !empty($image) ? "grok-2-vision-latest" : "grok-2-latest";
+
+        $ch = curl_init("https://api.x.ai/v1/chat/completions");
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode([
+                "model" => $model,
+                "messages" => $_SESSION["messages"],
+                "stream" => false,
+            ]),
+            CURLOPT_HTTPHEADER => [
+                "Content-Type: application/json",
+                "Authorization: Bearer " . $_ENV["api-key"],
+            ],
+        ]);
+
+        curl_multi_add_handle($mh, $ch);
+        $channels[] = $ch;
+
+        $active = null;
+        do {
+            $status = curl_multi_exec($mh, $active);
+            if ($active) {
+                curl_multi_select($mh);
+            }
+        } while ($active && $status == CURLM_OK);
+
+        foreach ($channels as $ch) {
+            $res = json_decode(curl_multi_getcontent($ch), true);
+            if (!empty($res["choices"][0]["message"]["content"])) {
+                $_SESSION["messages"][] = [
+                    "role" => "assistant",
+                    "content" => $res["choices"][0]["message"]["content"],
+                ];
+            }
+            curl_multi_remove_handle($mh, $ch);
+        }
+
+        curl_multi_close($mh);
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -92,8 +114,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && ($msg = trim($_POST["message"]))) {
         <span class="text-xl font-semibold">Grok</span>
       </div>
       <div class="flex items-center gap-4">
-          <a href="?clear=1" title="Clear history" class="p-2 hover:bg-gray-200 rounded-full"><i class="ri-edit-line text-xl leading-none"></i></a>
-        <button onclick="navigator.share({title:'Grok Chat',text:'Check out my chat with Grok',url:window.location.href})" class="p-2 hover:bg-gray-200 rounded-full">
+        <a href="?clear=1" title="Clear history" class="p-2 hover:bg-gray-200 rounded-full leading-none"><i class="ri-edit-line text-xl leading-none"></i></a>
+        <button onclick="navigator.share({title:'Grok Chat',text:'Check out my chat with Grok',url:window.location.href})" class="p-2 hover:bg-gray-200 rounded-full leading-none">
           <i class="ri-share-2-line text-xl leading-none"></i>
         </button>
         <div class="h-8 w-8 rounded-full bg-violet-500 text-white flex items-center justify-center">M</div>
@@ -108,7 +130,19 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && ($msg = trim($_POST["message"]))) {
           <div class="max-w-[80%] p-3 <?= $isUser
               ? "bg-blue-500 text-white rounded-l-3xl rounded-t-3xl"
               : "" ?>">
-            <?= htmlspecialchars($m["content"] ?? "Error: Missing content") ?>
+            <?php if (is_array($m["content"])): ?>
+              <?php foreach ($m["content"] as $content): ?>
+                <?php if ($content["type"] === "image_url"): ?>
+                  <img src="<?= $content["image_url"][
+                      "url"
+                  ] ?>" class="max-w-full rounded-lg mb-2" />
+                <?php else: ?>
+                  <?= htmlspecialchars($content["text"] ?? "") ?>
+                <?php endif; ?>
+              <?php endforeach; ?>
+            <?php else: ?>
+              <?= htmlspecialchars($m["content"] ?? "Error: Missing content") ?>
+            <?php endif; ?>
           </div>
         </div>
       <?php
@@ -116,22 +150,34 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && ($msg = trim($_POST["message"]))) {
     </div>
   </div>
   <div class="fixed bottom-0 w-full max-w-[50rem] left-1/2 -translate-x-1/2 p-3">
-      <form method="POST" class="grid relative bg-stone-50 p-2 rounded-3xl ring-1 ring-gray-200 hover:ring-gray-300 hover:shadow hover:bg-white focus-within:ring-gray-300 duration-300" data-replicated-value="">
+    <form method="POST" enctype="multipart/form-data" class="grid relative bg-stone-50 p-2 rounded-3xl ring-1 ring-gray-200 hover:ring-gray-300 hover:shadow hover:bg-white focus-within:ring-gray-300 duration-300" data-replicated-value="">
       <textarea name="message" class="w-full p-3 bg-transparent focus:outline-none" placeholder="How can Grok help?" style="resize:none;" oninput="this.parentNode.dataset.replicatedValue=this.value"></textarea>
       <div class="grid grid-cols-[auto_1fr] gap-2 absolute bottom-4 right-4">
         <select class="rounded-lg border px-3 py-1.5 text-sm"><option>Grok 2</option></select>
         <button id="submit-button" type="submit" disabled class="justify-self-end rounded-full bg-black hover:bg-gray-600 text-white p-2 leading-none disabled:bg-gray-300 duration-300"><i class="ri-arrow-up-line"></i></button>
       </div>
+      <div class="absolute bottom-4 left-4">
+        <label class="p-2 hover:bg-gray-200 rounded-full leading-none cursor-pointer">
+          <input type="file" name="image" accept="image/*" class="hidden" onchange="showImagePreview(this)"/>
+          <i class="ri-attachment-2 leading-none"></i>
+        </label>
+        <div id="image-preview" class="hidden absolute bottom-12 left-0 bg-white p-2 rounded-lg shadow-lg">
+          <img src="" alt="Preview" class="max-w-[100px] max-h-[100px] rounded"/>
+          <button type="button" onclick="clearImage()" class="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 flex items-center justify-center">×</button>
+        </div>
+      </div>
     </form>
   </div>
 </main>
 <script>
-  const a=document.getElementsByName('message')[0],
-        b=document.getElementById('submit-button'),
-        c=document.getElementById('chat-container');
-  a.addEventListener('input',()=>b.disabled=!a.value.trim());
-  c.scrollTop=c.scrollHeight;
-  document.addEventListener('keydown',e=>e.shiftKey&&e.key==='Enter'?e:e.key==='Enter'?(e.preventDefault(),document.querySelector('form').submit()):0);
+const a=document.getElementsByName('message')[0],
+      b=document.getElementById('submit-button'),
+      c=document.getElementById('chat-container');
+const showImagePreview=i=>{if(!i.files[0])return;let r=new FileReader;r.onload=e=>{document.querySelector('#image-preview img').src=e.target.result;document.getElementById('image-preview').classList.remove('hidden');b.disabled=!1};r.readAsDataURL(i.files[0])}
+const clearImage=()=>{document.querySelector('input[type=file]').value='',document.getElementById('image-preview').classList.add('hidden'),b.disabled=!a.value.trim()};
+a.addEventListener('input',()=>b.disabled=!a.value.trim());
+c.scrollTop=c.scrollHeight;
+document.addEventListener('keydown',e=>e.shiftKey&&e.key==='Enter'?e:e.key==='Enter'&&a.value.trim()?(e.preventDefault(),document.querySelector('form').submit()):0);
 </script>
 </body>
 </html>
