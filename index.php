@@ -1,6 +1,12 @@
 <?php
 session_start();
 $_SESSION["messages"] = $_SESSION["messages"] ?? [];
+
+// Configure parallel request handling
+if (function_exists("pcntl_fork")) {
+    pcntl_async_signals(true);
+}
+
 if ($env = @parse_ini_file(".env")) {
     $_ENV["api-key"] = $env["api-key"];
 } elseif (getenv("api-key")) {
@@ -8,13 +14,21 @@ if ($env = @parse_ini_file(".env")) {
 } else {
     $_ENV["api-key"] = "YOUR_API_KEY";
 }
+
 if (isset($_GET["clear"])) {
     session_destroy();
     header("Location: " . $_SERVER["PHP_SELF"]);
     exit();
 }
+
 if ($_SERVER["REQUEST_METHOD"] === "POST" && ($msg = trim($_POST["message"]))) {
     $_SESSION["messages"][] = ["role" => "user", "content" => $msg];
+
+    // Create a pool of concurrent requests
+    $mh = curl_multi_init();
+    $channels = [];
+
+    // Initialize parallel request
     $ch = curl_init("https://api.x.ai/v1/chat/completions");
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
@@ -29,14 +43,33 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && ($msg = trim($_POST["message"]))) {
             "Authorization: Bearer " . $_ENV["api-key"],
         ],
     ]);
-    $res = json_decode(curl_exec($ch), true);
-    curl_close($ch);
-    if (!empty($res["choices"][0]["message"]["content"])) {
-        $_SESSION["messages"][] = [
-            "role" => "assistant",
-            "content" => $res["choices"][0]["message"]["content"],
-        ];
+
+    // Add handle to pool
+    curl_multi_add_handle($mh, $ch);
+    $channels[] = $ch;
+
+    // Execute requests concurrently
+    do {
+        $status = curl_multi_exec($mh, $active);
+        if ($active) {
+            curl_multi_select($mh);
+        }
+    } while ($active && $status == CURLM_OK);
+
+    // Get content from completed requests
+    foreach ($channels as $ch) {
+        $res = json_decode(curl_multi_getcontent($ch), true);
+        if (!empty($res["choices"][0]["message"]["content"])) {
+            $_SESSION["messages"][] = [
+                "role" => "assistant",
+                "content" => $res["choices"][0]["message"]["content"],
+            ];
+        }
+        curl_multi_remove_handle($mh, $ch);
     }
+
+    // Clean up
+    curl_multi_close($mh);
 }
 ?>
 <!DOCTYPE html>
