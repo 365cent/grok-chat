@@ -15,6 +15,10 @@ if ($env = @parse_ini_file(".env")) {
     $_ENV["api-key"] = "YOUR_API_KEY";
 }
 
+if ($_SERVER["REQUEST_METHOD"] === "GET") {
+    header("Cache-Control: public, max-age=120");
+}
+
 if (isset($_GET["clear"])) {
     session_destroy();
     header("Location: " . $_SERVER["PHP_SELF"]);
@@ -100,7 +104,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   <meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
   <title>Grok Chatbot</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet"/>
+  <link href="https://fastly.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet"/>
   <style>form::after,textarea {grid-area: 1/1/2/2}form::after{content:attr(data-replicated-value)" ";white-space:pre-wrap;visibility:hidden;}</style>
 </head>
 <body class="bg-[#f9f8f6]">
