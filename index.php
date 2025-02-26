@@ -57,7 +57,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
         $model = !empty($image) ? "grok-2-vision-latest" : "grok-2-latest";
 
-        $ch = curl_init("https://api.x.ai/v1/chat/completions");
+        // $ch = curl_init("https://api.x.ai/v1/chat/completions");
+        $ch = curl_init("https://gateway.ai.cloudflare.com/v1/8c9f126e8236df7c3ecfb44264c18351/ai/grok/v1/chat/completions");
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
@@ -68,6 +69,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             ]),
             CURLOPT_HTTPHEADER => [
                 "Content-Type: application/json",
+                "cf-aig-cache-ttl: 3600",
                 "Authorization: Bearer " . $_ENV["api-key"],
             ],
         ]);
