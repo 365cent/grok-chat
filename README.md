@@ -54,3 +54,11 @@ Fill in the API key as `api-key` and the account id as `cf-account-id` in render
 Deploy the app
 
 Open the app and start chatting!
+
+**This app can be deployed 0.1vCPU 0.1GB RAM instance for free on Render**
+
+## Thanks
+
+- [Grok API](https://x.ai)
+- [Cloudflare AI Gateway](https://developers.cloudflare.com/ai-gateway/)
+- [Render](https://render.com)
