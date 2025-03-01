@@ -2,7 +2,9 @@
 
 A simple one-file PHP wrapper for the Grok API.
 
-## Usage
+## Screenshot
+
+![Screenshot](img/screenshot.webp)
 
 ## Features
 
