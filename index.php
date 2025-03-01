@@ -9,10 +9,13 @@ if (function_exists("pcntl_fork")) {
 
 if ($env = @parse_ini_file(".env")) {
     $_ENV["api-key"] = $env["api-key"];
+    $_ENV["cf-account-id"] = $env["cf-account-id"];
 } elseif (getenv("api-key")) {
     $_ENV["api-key"] = getenv("api-key");
+    $_ENV["cf-account-id"] = getenv("cf-account-id");
 } else {
     $_ENV["api-key"] = "YOUR_API_KEY";
+    $_ENV["cf-account-id"] = "8c9f126e8236df7c3ecfb44264c18351"; // default account id, replace with your own
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
@@ -58,7 +61,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $model = !empty($image) ? "grok-2-vision-latest" : "grok-2-latest";
 
         // $ch = curl_init("https://api.x.ai/v1/chat/completions");
-        $ch = curl_init("https://gateway.ai.cloudflare.com/v1/8c9f126e8236df7c3ecfb44264c18351/ai/grok/v1/chat/completions");
+        $ch = curl_init("https://gateway.ai.cloudflare.com/v1/".$_ENV["cf-account-id"]."/ai/grok/v1/chat/completions");
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST => true,
