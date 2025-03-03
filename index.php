@@ -2,6 +2,8 @@
 session_start();
 $_SESSION["messages"] = $_SESSION["messages"] ?? [];
 
+require_once 'Parsedown.php';
+
 // Configure parallel request handling
 if (function_exists("pcntl_fork")) {
     pcntl_async_signals(true);
@@ -110,6 +112,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   <title>Grok Chatbot</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fastly.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet"/>
+  <link href="parsedown.css" rel="stylesheet"/>
   <style>form::after,textarea {grid-area: 1/1/2/2}form::after{content:attr(data-replicated-value)" ";white-space:pre-wrap;visibility:hidden;}</style>
 </head>
 <body class="bg-[#f9f8f6]">
@@ -133,9 +136,13 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
   </header>
   <div id="chat-container" class="flex-1 overflow-y-auto px-5 pt-20 pb-40">
     <div class="max-w-[50rem] mx-auto flex flex-col gap-8 pb-4">
-      <?php foreach ($_SESSION["messages"] as $m):
+      <?php 
+
+      $parsedown = new Parsedown();
+      
+      foreach ($_SESSION["messages"] as $m):
           $isUser = $m["role"] === "user"; ?>
-        <div class="flex <?= $isUser ? "justify-end" : "justify-start" ?>">
+        <div class="flex <?= $isUser ? "justify-end" : "parsedown justify-start" ?>">
           <div class="max-w-[80%] p-3 <?= $isUser
               ? "bg-blue-500 text-white rounded-l-3xl rounded-t-3xl"
               : "" ?>">
@@ -146,11 +153,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
                       "url"
                   ] ?>" class="max-w-full rounded-lg mb-2" />
                 <?php else: ?>
-                  <?= htmlspecialchars($content["text"] ?? "") ?>
+                  <?= $parsedown->text($content["text"] ?? "") ?>
                 <?php endif; ?>
               <?php endforeach; ?>
             <?php else: ?>
-              <?= htmlspecialchars($m["content"] ?? "Error: Missing content") ?>
+              <?= $parsedown->text($m["content"] ?? "Error: Missing content") ?>
             <?php endif; ?>
           </div>
         </div>
