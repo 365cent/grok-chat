@@ -6,6 +6,8 @@ WORKDIR /var/www/html
 
 # Copy PHP files
 COPY index.php .
+COPY Parsedown.php .
+COPY parsedown.css .
 
 # Expose port 8000 for Render
 EXPOSE 8000
